@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Responsive Date Range Picker</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <!-- Daterangepicker CSS -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/daterangepicker/daterangepicker.css" />
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 20px;
+    }
+
+    #dateInput {
+      padding: 12px 16px;
+      font-size: 16px;
+      width: 100%;
+      max-width: 400px;
+    }
+
+    /* Drawer Styling */
+    #drawerWrapper {
+      display: none;
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 65vh;
+      background: #fff;
+      box-shadow: 0 -3px 15px rgba(0, 0, 0, 0.3);
+      z-index: 9999;
+      padding: 16px;
+      border-top-left-radius: 16px;
+      border-top-right-radius: 16px;
+      box-sizing: border-box;
+      transition: transform 0.3s ease;
+    }
+
+    .drawer-buttons {
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+      margin-top: 10px;
+    }
+
+    .drawer-buttons button {
+      padding: 8px 16px;
+      font-size: 14px;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+
+    .btn-cancel {
+      background: #f2f2f2;
+    }
+
+    .btn-done {
+      background: #007bff;
+      color: white;
+    }
+
+    /* Calendar wrapper for mobile */
+    #calendarWrapper {
+      position: relative;
+      height: 100%;
+      overflow: hidden;
+    }
+
+    /* Force daterangepicker to stay inside drawer on mobile */
+    @media (max-width: 767px) {
+      /* Hide any daterangepicker that's not inside the drawer */
+      body > .daterangepicker {
+        display: none !important;
+      }
+
+      #drawerWrapper .daterangepicker {
+        position: absolute !important;
+        top: 0 !important;
+        left: 0 !important;
+        right: 0 !important;
+        bottom: 0 !important;
+        width: auto !important;
+        max-width: none !important;
+        margin: 0 !important;
+        border: none !important;
+        box-shadow: none !important;
+        background: transparent !important;
+      }
+
+      #drawerWrapper .daterangepicker:before,
+      #drawerWrapper .daterangepicker:after {
+        display: none !important;
+      }
+
+      #drawerWrapper .daterangepicker .drp-calendar {
+        max-width: none !important;
+        width: 100% !important;
+      }
+
+      #drawerWrapper .daterangepicker .calendar-table {
+        width: 100% !important;
+      }
+    }
+
+    @media (min-width: 768px) {
+      #drawerWrapper {
+        display: none !important;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <input type="text" id="dateInput" placeholder="Select date range" readonly />
+
+      <!-- Drawer Container -->
+  <div id="drawerWrapper">
+    <!-- Calendar will appear here -->
+    <div id="calendarWrapper"></div>
+  </div>
+
+  <!-- JS Libraries -->
+  <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/momentjs/latest/moment.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/daterangepicker/daterangepicker.min.js"></script>
+
+  <script>
+    const isMobile = () => window.innerWidth < 768;
+
+    let tempStart = null;
+    let tempEnd = null;
+    let pickerInstance = null;
+    let currentStart = null;
+    let currentEnd = null;
+
+    $(function () {
+      // Initialize daterangepicker for desktop
+      $('#dateInput').daterangepicker({
+        autoUpdateInput: false,
+        autoApply: true,
+        opens: 'center',
+        locale: {
+          cancelLabel: 'Clear'
+        }
+      }, function (start, end) {
+        if (!isMobile()) {
+          $('#dateInput').val(start.format('MM/DD/YYYY') + ' - ' + end.format('MM/DD/YYYY'));
+          // Store current selection
+          currentStart = start;
+          currentEnd = end;
+        }
+      });
+
+      // Disable the desktop daterangepicker on mobile
+      $('#dateInput').on('show.daterangepicker', function(ev, picker) {
+        if (isMobile()) {
+          ev.preventDefault();
+          return false;
+        }
+      });
+
+      // On input click
+      $('#dateInput').on('click', function (e) {
+        if (isMobile()) {
+          e.preventDefault();
+          e.stopPropagation();
+
+          // Hide any existing daterangepicker that might be outside
+          $('.daterangepicker').hide();
+
+          // Show drawer
+          $('#drawerWrapper').slideDown();
+
+          // Clean up previous instance
+          if (pickerInstance) {
+            pickerInstance.remove();
+            pickerInstance = null;
+          }
+
+          // Clear calendar wrapper
+          $('#calendarWrapper').empty();
+
+          // Create a hidden input for the mobile picker
+          const $hiddenInput = $('<input type="text" style="position: absolute; opacity: 0; pointer-events: none;" />');
+          $('#calendarWrapper').append($hiddenInput);
+
+          // Initialize new daterangepicker instance
+          $hiddenInput.daterangepicker({
+            parentEl: '#calendarWrapper',
+            autoUpdateInput: false,
+            autoApply: false,
+            startDate: currentStart || tempStart || moment(),
+            endDate: currentEnd || tempEnd || moment(),
+            opens: 'left',
+            drops: 'down',
+            alwaysShowCalendars: true,
+            locale: {
+              cancelLabel: 'Clear'
+            }
+          });
+
+          // Get the picker instance and set up event handlers
+          pickerInstance = $hiddenInput.data('daterangepicker');
+          
+          // Handle date selection and close drawer on apply
+          $hiddenInput.on('apply.daterangepicker', function(ev, picker) {
+            tempStart = picker.startDate;
+            tempEnd = picker.endDate;
+            currentStart = picker.startDate;
+            currentEnd = picker.endDate;
+            // Update the main input field
+            $('#dateInput').val(tempStart.format('MM/DD/YYYY') + ' - ' + tempEnd.format('MM/DD/YYYY'));
+            // Close the drawer
+            closeDrawer();
+          });
+
+          // Handle individual date clicks to prevent jumping
+          $hiddenInput.on('show.daterangepicker', function(ev, picker) {
+            // Set the current dates if they exist
+            if (currentStart && currentEnd) {
+              picker.setStartDate(currentStart);
+              picker.setEndDate(currentEnd);
+            }
+          });
+
+          // Prevent the picker from hiding on clicks inside
+          $hiddenInput.on('hide.daterangepicker', function(ev, picker) {
+            ev.preventDefault();
+            return false;
+          });
+          
+          // Force show the picker and move it inside drawer
+          setTimeout(() => {
+            if (pickerInstance) {
+              // Hide any daterangepicker outside the drawer
+              $('body > .daterangepicker').hide();
+              
+              pickerInstance.show();
+              
+              // Move the daterangepicker element inside our wrapper
+              const $picker = $('.daterangepicker').not('#drawerWrapper .daterangepicker');
+              if ($picker.length) {
+                $picker.appendTo('#calendarWrapper');
+                $picker.show();
+                
+                // Prevent clicks inside the picker from closing it
+                $picker.on('click', function(e) {
+                  e.stopPropagation();
+                });
+
+                // Ensure the picker shows the correct dates
+                if (pickerInstance && currentStart && currentEnd) {
+                  pickerInstance.setStartDate(currentStart);
+                  pickerInstance.setEndDate(currentEnd);
+                }
+              }
+            }
+          }, 100);
+        }
+      });
+
+      // Done Button
+      $('#doneDrawer').click(function () {
+        if (tempStart && tempEnd) {
+          $('#dateInput').val(tempStart.format('MM/DD/YYYY') + ' - ' + tempEnd.format('MM/DD/YYYY'));
+        }
+        closeDrawer();
+      });
+
+      // Cancel Button
+      $('#cancelDrawer').click(function () {
+        closeDrawer();
+      });
+
+      function closeDrawer() {
+        $('#drawerWrapper').slideUp();
+        if (pickerInstance) {
+          pickerInstance.remove();
+          pickerInstance = null;
+        }
+      }
+
+      // Prevent clicks inside drawer from closing it
+      $('#drawerWrapper').on('click', function(e) {
+        e.stopPropagation();
+      });
+
+      // Prevent clicks inside calendar from closing drawer
+      $('#calendarWrapper').on('click', function(e) {
+        e.stopPropagation();
+      });
+
+      // Handle window resize
+      $(window).on('resize', function () {
+        if (!isMobile()) {
+          $('#drawerWrapper').hide();
+          if (pickerInstance) {
+            pickerInstance.remove();
+            pickerInstance = null;
+          }
+        }
+      });
+
+      // Prevent outside clicks from closing drawer (remove the old handler)
+      $(document).off('click.drawer');
+
+      // Prevent body scroll when drawer is open
+      $('#drawerWrapper').on('show', function() {
+        $('body').css('overflow', 'hidden');
+      }).on('hide', function() {
+        $('body').css('overflow', '');
+      });
+    });
+  </script>
+</body>
+</html>
