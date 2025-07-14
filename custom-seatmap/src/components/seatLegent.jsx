@@ -1,4 +1,3 @@
-
 export const SeatLegend = () => {
   const itemClass = 'flex items-center gap-2 text-sm';
 

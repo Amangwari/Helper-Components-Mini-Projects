@@ -7,15 +7,13 @@ const App = () => {
   const onlySeats = allServices.filter(service => service?.Type === 'SEAT');
   console.log(onlySeats, "only")
 
-  const handleBooking = (seat) => {
-    alert(`You selected seat ${seat.Code} with price $${seat.PricingInfo?.TotalGrossPrice}`);
-    // You can send seat data to backend here
+ const handleBooking = (seat) => {
+    alert(`Seat ${seat.Code} booked for $${Number(seat.PricingInfo.TotalGrossPrice).toFixed(2)}`);
   };
 
   return (
-    <div className="min-h-screen bg-gray-100 p-6">
-      <h1 className="text-3xl font-bold mb-6 text-center">Flight Seat Map</h1>
-       <SeatMap seats={onlySeats} onBook={handleBooking} />
+  <div className="min-h-screen bg-gray-100 py-8">
+      <SeatMap seats={onlySeats} onBook={handleBooking} />
     </div>
   );
 };
